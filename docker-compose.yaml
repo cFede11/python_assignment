@@ -1,0 +1,21 @@
+version: "3"
+services:
+  database:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./financial:/app
+    command: python populate_table.py
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    environment:
+      - AV_API_KEY="128S2A8V57C2W8UP"
+    volumes:
+      - ./financial:/app/financial
+
