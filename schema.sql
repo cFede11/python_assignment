@@ -1,3 +1,7 @@
+CREATE DATABASE IF NOT EXISTS financial_db;
+
+USE financial_db;
+
 CREATE TABLE IF NOT EXISTS financial_data (
     symbol TEXT(255),
     date DATE,
@@ -6,4 +10,3 @@ CREATE TABLE IF NOT EXISTS financial_data (
     volume INTEGER,
     PRIMARY KEY (symbol(255), date)
 );
-

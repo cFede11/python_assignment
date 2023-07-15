@@ -2,6 +2,14 @@ import mysql.connector
 from alpha_vantage.timeseries import TimeSeries
 import os
 
+
+#MySQL database configuration
+config = {
+    'host': 'database',
+    'user': f'root',
+    'database': 'financial_db'
+}
+
 #get API KEY for Alpha Vantage
 api_key = os.environ.get('AV_API_KEY')
 
@@ -12,19 +20,13 @@ if api_key is None:
 #initialize Alpha Vantage
 ts = TimeSeries(key=api_key, output_format='pandas')
 
-#symbols to be used
-symbols = ['META']  # MSFT  symbols = ['IBM', 'AAPL']
+#symbols to be used (META MSFT)
+symbols = ['IBM', 'AAPL']
 
 try:
     #connect to the MySQL database
-    conn = mysql.connector.connect(
-        host='localhost',
-        user='admin',
-        password='admin',
-        database='test1'
-    )
-
-    cursor = conn.cursor()
+    conn = mysql.connector.connect(**config)
+    cursor = conn.cursor(dictionary=True)
 
     def upsert_stock_record(symbol, date, open_price, close_price, volume):
         #insert and check for repeated values (upsert operation)
