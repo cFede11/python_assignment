@@ -7,12 +7,10 @@ Blueprint Routes:
 Module Dependencies:
     - flask
     - mysql.connector
-    - os
 """
 
 from flask import Blueprint, request, jsonify
 import mysql.connector
-import os
 
 financial_data_blueprint = Blueprint('financial_data', __name__)
 

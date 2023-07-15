@@ -8,13 +8,11 @@ Module Dependencies:
     - flask
     - mysql.connector
     - datetime
-    - os
 """
 
 from flask import Blueprint, request, jsonify
 import mysql.connector
 from datetime import datetime
-import os
 
 statistics_blueprint = Blueprint('statistics', __name__)
 

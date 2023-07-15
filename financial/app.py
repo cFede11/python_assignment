@@ -1,3 +1,11 @@
+"""
+This module initializes a Flask application and registers the blueprints for the financial data and statistics routes.
+
+Module Dependencies:
+    - flask.Flask
+    - routes.financial_data_blueprint
+    - routes.statistics_blueprint
+"""
 from flask import Flask
 from routes import financial_data_blueprint, statistics_blueprint
 
