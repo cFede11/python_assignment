@@ -1,19 +1,25 @@
 version: "3"
 services:
+  # financial API service
   api:
     build:
       context: .
       dockerfile: Dockerfile
+    # Map host port 5000 to container port 5000
     ports:
       - "5000:5000"
+    # Start the financial API
     command: python /app/financial/app.py
 
   database:
     image: mysql:latest
+    # Map host port 3306 to container port 3306
     ports:
       - "3306:3306"
+    # Set environment variables for MySQL configuration
     environment:
       - MYSQL_ALLOW_EMPTY_PASSWORD=yes
       - MYSQL_DATABASE=financial_db
+    # Mount the schema.sql file as an initialization script
     volumes:
       - ./schema.sql:/docker-entrypoint-initdb.d/schema.sql
