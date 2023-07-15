@@ -1,15 +1,15 @@
 from flask import Blueprint, request, jsonify
 import mysql.connector
 from datetime import datetime
+import os
 
 statistics_blueprint = Blueprint('statistics', __name__)
 
 #MySQL database configuration
 config = {
-    'host': 'localhost',
-    'user': 'admin',
-    'password': 'admin',
-    'database': 'test1'
+    'host': 'database',
+    'user': f'root',
+    'database': 'financial_db'
 }
 
 @statistics_blueprint.route('/api/statistics', methods=['GET'])
