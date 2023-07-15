@@ -1,75 +1,80 @@
-import sqlite3
+import mysql.connector
 from alpha_vantage.timeseries import TimeSeries
 import os
 
-#getAPI KEY for alpha vantage
+#get API KEY for Alpha Vantage
 api_key = os.environ.get('AV_API_KEY')
 
 #check if the API key is available
 if api_key is None:
     raise ValueError('AV_API_KEY environment variable is not set')
 
+#initialize Alpha Vantage
 ts = TimeSeries(key=api_key, output_format='pandas')
 
 #symbols to be used
-symbols = ['IBM', 'AAPL']
+symbols = ['META']  # MSFT  symbols = ['IBM', 'AAPL']
 
-conn = sqlite3.connect('schema.db')
-cursor = conn.cursor()
-
-# Create financial_data
-create_table_query = '''
-    CREATE TABLE IF NOT EXISTS financial_data (
-        symbol TEXT,
-        date TEXT,
-        open_price REAL,
-        close_price REAL,
-        volume INTEGER,
-        PRIMARY KEY (symbol, date)
+try:
+    #connect to the MySQL database
+    conn = mysql.connector.connect(
+        host='localhost',
+        user='admin',
+        password='admin',
+        database='test1'
     )
-'''
-cursor.execute(create_table_query)
-conn.commit()
 
-def upsert_stock_record(symbol, date, open_price, close_price, volume):
+    cursor = conn.cursor()
 
-    #insert and check for repeated values (upsert operation)
-    upsert_query = '''
-        INSERT INTO financial_data (symbol, date, open_price, close_price, volume)
-        VALUES (?, ?, ?, ?, ?)
-        ON CONFLICT(symbol, date) DO UPDATE SET
-        open_price = excluded.open_price,
-        close_price = excluded.close_price,
-        volume = excluded.volume
-    '''
-    cursor.execute(upsert_query, (symbol, date, open_price, close_price, volume))
-    conn.commit()
+    def upsert_stock_record(symbol, date, open_price, close_price, volume):
+        #insert and check for repeated values (upsert operation)
+        upsert_query = '''
+            INSERT INTO financial_data (symbol, date, open_price, close_price, volume)
+            VALUES (%s, %s, %s, %s, %s)
+            ON DUPLICATE KEY UPDATE
+            open_price = VALUES(open_price),
+            close_price = VALUES(close_price),
+            volume = VALUES(volume)
+        '''
+        cursor.execute(upsert_query, (symbol, date, open_price, close_price, volume))
+        conn.commit()
 
+    for symbol in symbols:
+        data, meta_data = ts.get_daily_adjusted(symbol=symbol, outputsize='compact')
+        #get the last 14 days data
+        recent_data = data.tail(14)
 
-for symbol in symbols:
+        for date, values in recent_data.iterrows():
+            date = date.strftime('%Y-%m-%d')
+            open_price = values['1. open']
+            close_price = values['4. close']
+            volume = values['6. volume']
 
-    data, meta_data = ts.get_daily_adjusted(symbol=symbol, outputsize='compact')
-    #get the last 14 days data
-    recent_data = data.tail(14)
+            #update the database
+            upsert_stock_record(symbol, date, open_price, close_price, volume)
 
-    for date, values in recent_data.iterrows():
+            stock_info = {
+                "symbol": symbol,
+                "date": date,
+                "open_price": open_price,
+                "close_price": close_price,
+                "volume": volume
+            }
 
-        date = date.strftime('%Y-%m-%d')
-        open_price = values['1. open']
-        close_price = values['4. close']
-        volume = values['6. volume']
+            print(stock_info)
 
-        #update the db
-        upsert_stock_record(symbol, date, open_price, close_price, volume)
+    conn.close()
 
-        stock_info = {
-            "symbol": symbol,
-            "date": date,
-            "open_price": open_price,
-            "close_price": close_price,
-            "volume": volume
-        }
-
-        print(stock_info)
-
-conn.close()
+except mysql.connector.Error as e:
+    #handle MySQL connection errors
+    error_code = e.errno
+    error_msg = e.msg
+    if error_code == 1045:
+        print("Error: Access denied. Check the username and password.")
+    elif error_code == 1049:
+        print("Error: The specified database does not exist.")
+    else:
+        print(f"Error: {error_msg}")
+except Exception as e:
+    #handle other exceptions
+    print(f"Error: {str(e)}")

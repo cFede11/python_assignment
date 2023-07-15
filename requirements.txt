@@ -1,2 +1,4 @@
+mysql-connector-python
 alpha_vantage
+pandas
 Flask
