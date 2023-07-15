@@ -1,10 +1,16 @@
 from flask import Blueprint, request, jsonify
-import sqlite3
-import os
+import mysql.connector
+from datetime import datetime
 
 statistics_blueprint = Blueprint('statistics', __name__)
 
-DATABASE = os.path.join(os.path.dirname(__file__), '..', 'schema.db')
+#MySQL database configuration
+config = {
+    'host': 'localhost',
+    'user': 'admin',
+    'password': 'admin',
+    'database': 'test1'
+}
 
 @statistics_blueprint.route('/api/statistics', methods=['GET'])
 def get_statistics():
@@ -13,7 +19,7 @@ def get_statistics():
         end_date = request.args.get('end_date')
         symbol = request.args.get('symbol')
 
-        # Validate all required parameters exist
+        #validate all required parameters exist
         if not start_date or not end_date or not symbol:
             response = {
                 "data": {},
@@ -23,12 +29,25 @@ def get_statistics():
             }
             return jsonify(response)
 
-        conn = sqlite3.connect(DATABASE)
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
+        #validate date format and valid dates
+        try:
+            datetime.strptime(start_date, '%Y-%m-%d')
+            datetime.strptime(end_date, '%Y-%m-%d')
+        except ValueError:
+            response = {
+                "data": {},
+                "info": {
+                    "error": "Invalid date format or invalid date provided."
+                }
+            }
+            return jsonify(response)
 
-        # Calculate the average of open_price, close_price, volume
-        query = "SELECT AVG(open_price) AS avg_open_price, AVG(close_price) AS avg_close_price, AVG(volume) AS avg_volume FROM financial_data WHERE date >= ? AND date <= ? AND symbol = ?"
+        #connect to the MySQL database
+        conn = mysql.connector.connect(**config)
+        cursor = conn.cursor(dictionary=True)
+
+        #calculate the average of open_price, close_price, volume
+        query = "SELECT AVG(open_price) AS avg_open_price, AVG(close_price) AS avg_close_price, AVG(volume) AS avg_volume FROM financial_data WHERE date >= %s AND date <= %s AND symbol = %s"
         cursor.execute(query, (start_date, end_date, symbol))
         result = cursor.fetchone()
         conn.close()
@@ -51,11 +70,12 @@ def get_statistics():
 
         return jsonify(response)
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         response = {
             "data": {},
             "info": {
-                "error": str(e)
+                "error": f"An error occurred while processing the request: {str(e)}"
             }
         }
         return jsonify(response), 500
-

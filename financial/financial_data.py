@@ -1,10 +1,15 @@
 from flask import Blueprint, request, jsonify
-import sqlite3
-import os
+import mysql.connector
 
 financial_data_blueprint = Blueprint('financial_data', __name__)
 
-DATABASE = os.path.join(os.path.dirname(__file__), '..', 'schema.db')
+#MySQL database configuration
+config = {
+    'host': 'localhost',
+    'user': 'admin',
+    'password': 'admin',
+    'database': 'test1'
+}
 
 @financial_data_blueprint.route('/api/financial_data', methods=['GET'])
 def get_financial_data():
@@ -15,33 +20,44 @@ def get_financial_data():
         limit = int(request.args.get('limit', 5))
         page = int(request.args.get('page', 1))
 
-        conn = sqlite3.connect(DATABASE)
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
+        #connect to the MySQL database
+        conn = mysql.connector.connect(**config)
+        cursor = conn.cursor(dictionary=True)
 
         #get the parameters
         query = "SELECT * FROM financial_data WHERE 1=1"
         if start_date:
-            query += " AND date >= '{}'".format(start_date)
+            query += " AND date >= %s"
         if end_date:
-            query += " AND date <= '{}'".format(end_date)
+            query += " AND date <= %s"
         if symbol:
-            query += " AND symbol = '{}'".format(symbol)
+            query += " AND symbol = %s"
 
-        count_query = "SELECT COUNT(*) FROM ({})".format(query)
-        cursor.execute(count_query)
-        count = cursor.fetchone()[0]
+        count_query = "SELECT COUNT(*) FROM ({}) AS subquery".format(query)
+        params = []
+        if start_date:
+            params.append(start_date)
+        if end_date:
+            params.append(end_date)
+        if symbol:
+            params.append(symbol)
 
-        #calculate the pagination
+        cursor.execute(count_query, params)
+
+        count_result = cursor.fetchone()
+        count = count_result['COUNT(*)'] if count_result else 0
+
+        #do the pagination
         offset = (page - 1) * limit
-        query += " ORDER BY date DESC LIMIT {} OFFSET {}".format(limit, offset)
+        query += " ORDER BY date DESC LIMIT %s OFFSET %s"
+        params.extend([limit, offset])
 
-        cursor.execute(query)
+        cursor.execute(query, params)
         records = cursor.fetchall()
         conn.close()
 
         response = {
-            "data": [dict(record) for record in records],
+            "data": records,
             "pagination": {
                 "count": count,
                 "page": page,
@@ -55,6 +71,8 @@ def get_financial_data():
 
         return jsonify(response)
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         response = {
             "data": [],
             "pagination": {},
@@ -63,5 +81,3 @@ def get_financial_data():
             }
         }
         return jsonify(response), 500
-
-
